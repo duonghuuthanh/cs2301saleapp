@@ -1,12 +1,30 @@
-from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from eapp import db, app
+from flask_login import UserMixin
+from enum import Enum as UserEnum
 
 
 class BaseModel(db.Model):
     __abstract__ = True
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+
+
+class UserRole(UserEnum):
+    USER = 1
+    ADMIN = 2
+
+
+class User(BaseModel, UserMixin):
+    name = Column(String(50), nullable=False)
+    avatar = Column(String(100))
+    username = Column(String(50), nullable=False, unique=True)
+    password = Column(String(50), nullable=False)
+    user_role = Column(Enum(UserRole), default=UserRole.USER)
+
+    def __str__(self):
+        return self.name
 
 
 class Category(BaseModel):
@@ -21,21 +39,31 @@ class Product(BaseModel):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     price = Column(Float, default=0)
-    image = Column(String(100), default='https://res.cloudinary.com/dxxwcby8l/image/upload/v1646729533/zuur9gzztcekmyfenkfr.jpg')
+    image = Column(String(100),
+                   default='https://res.cloudinary.com/dxxwcby8l/image/upload/v1646729533/zuur9gzztcekmyfenkfr.jpg')
     category_id = Column(Integer, ForeignKey(Category.id), nullable=False)
 
     def __str__(self):
-        return self.subject
+        return self.name
 
 
 if __name__ == '__main__':
     with app.app_context():
-        # db.create_all()
-        # categories = ['Điện thoại', 'Máy tính bảng', 'Máy tính xách tay']
-        # for cate in categories:
-        #     c = Category(name=cate)
-        #     db.session.add(c)
-        # db.session.commit()
+        db.create_all()
+
+        import hashlib
+
+        u = User(name='admin', user_role=UserRole.ADMIN,
+                 avatar='https://res.cloudinary.com/dxxwcby8l/image/upload/v1647056401/ipmsmnxjydrhpo21xrd8.jpg',
+                 username='admin', password=str(hashlib.md5("123456".encode('utf-8')).hexdigest()))
+        db.session.add(u)
+        db.session.commit()
+
+        categories = ['Điện thoại', 'Máy tính bảng', 'Máy tính xách tay']
+        for cate in categories:
+            c = Category(name=cate)
+            db.session.add(c)
+        db.session.commit()
 
         products = [{
             "name": "iPhone 7 Plus",
@@ -53,7 +81,7 @@ if __name__ == '__main__':
             "category_id": 2
         }, {
             "name": "Galaxy Note 10 Plus",
-            "description": "Samsung, 64GB, RAML: 6GB",
+            "description": "Samsung, 64GB, RAM: 6GB",
             "price": 24000000,
             "image":
                 "https://res.cloudinary.com/dxxwcby8l/image/upload/v1647248722/r8sjly3st7estapvj19u.jpg",
