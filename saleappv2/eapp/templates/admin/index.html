@@ -8,7 +8,7 @@
 {% else %}
 <h2 class="text-success text-center">ĐĂNG NHẬP QUẢN TRỊ</h2>
 
-<form method="post" action="/login">
+<form method="post" action="/login?next=/admin">
   <div class="form-group">
     <label for="name">Tên đăng nhập:</label>
     <input type="text" class="form-control" placeholder="Tên đăng nhập" id="name" name="username" required />

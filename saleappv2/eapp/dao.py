@@ -1,6 +1,9 @@
+from sqlalchemy.exc import IntegrityError
+
 from eapp.models import Category, Product, User
 import hashlib
-from eapp import app
+from eapp import app, db
+import cloudinary.uploader
 
 
 def load_categories():
@@ -33,3 +36,18 @@ def auth_user(username, password):
     password = str(hashlib.md5(password.strip().encode('utf-8')).hexdigest())
     return User.query.filter(User.username==username,
                              User.password==password).first()
+
+def add_user(name, username, password, avatar):
+    password = str(hashlib.md5(password.strip().encode('utf-8')).hexdigest())
+    u = User(name=name.strip(), username=username.strip(), password=password)
+    if avatar:
+        res = cloudinary.uploader.upload(avatar)
+        u.avatar = res.get("secure_url")
+
+    db.session.add(u)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        raise Exception('Username đã tồn tại!')
+
