@@ -37,7 +37,7 @@
 
 {% if current_user.is_authenticated %}
 <div class="mt-1 mb-1">
-  <button class="btn btn-success">Thanh toán</button>
+  <button class="btn btn-success" onclick="pay()">Thanh toán</button>
 </div>
 {% else %}
 <div class="mt-1 mb-1">
@@ -47,7 +47,7 @@
 
 {% else %}
 <div class="alert alert-warning mt-2">
-  Không có sản phẩm trong giỏ!
+  Không có sản phẩm trong giỏ hoăc giỏ đã thanh toán!
 </div>
 {% endif %}
 

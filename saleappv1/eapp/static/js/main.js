@@ -55,3 +55,16 @@ function deleteCart(id) {
     }
 
 }
+
+function pay() {
+    if (confirm("Bạn chắc chắn thanh toán?") === true) {
+        fetch("/api/pay", {
+            method: "post"
+        }).then(res => {
+            if (res.status === 200)
+                location.reload();
+            else
+                alert("Hệ thống bị loi!");
+        })
+    }
+}

@@ -1,7 +1,7 @@
 from flask import render_template, request, redirect, jsonify, session
 
 from eapp import app, dao, login, utils
-from flask_login import login_user, logout_user
+from flask_login import login_user, logout_user, current_user, login_required
 import math
 from eapp.dao import add_user
 
@@ -61,7 +61,6 @@ def login_process():
     next = request.args.get('next')
     return redirect(next if next else '/')
 
-
 @app.route('/api/carts', methods=['post'])
 def add_to_cart():
     '''
@@ -78,7 +77,6 @@ def add_to_cart():
                 "quantity": 1
             }
         }
-
     '''
     # print(request.json)
     cart = session.get('cart')
@@ -125,6 +123,18 @@ def delete_to_cart(id):
     session['cart'] = cart
 
     return jsonify(utils.stats_cart(cart))
+
+
+@app.route('/api/pay', methods=['post'])
+@login_required
+def pay():
+    try:
+        dao.add_receipt(cart=session.get('cart'))
+        del session['cart']
+
+        return jsonify({'status': 200})
+    except Exception as ex:
+        return jsonify({'status': 400, 'err_msg': str(ex)})
 
 
 @app.route('/cart')
