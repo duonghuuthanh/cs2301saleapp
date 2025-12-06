@@ -1,16 +1,19 @@
 from flask import render_template, request, redirect, jsonify, session
-from flask_login import login_user, logout_user
+
 from eapp import app, dao, login, utils
+from flask_login import login_user, logout_user
 import math
+from eapp.dao import add_user
 
 
 @app.route('/')
 def index():
-    return render_template('index.html',
-                           pages=math.ceil(dao.count_products()/app.config['PAGE_SIZE']),
-                           products=dao.get_products(category_id=request.args.get('category_id'),
-                                                     kw=request.args.get('kw'),
-                                                     page=request.args.get('page', 1)))
+    products = dao.load_products(cate_id=request.args.get('category_id'),
+                                 kw=request.args.get('kw'),
+                                 page=int(request.args.get('page', 1)))
+
+    return render_template('index.html', products=products,
+                           pages=math.ceil(dao.count_products()/app.config['PAGE_SIZE']))
 
 
 @app.route('/login')
@@ -22,25 +25,27 @@ def login_view():
 def register_view():
     return render_template('register.html')
 
-
 @app.route('/register', methods=['post'])
 def register_process():
-    password = request.form.get('password')
-    confirm = request.form.get('confirm')
+    data = request.form
 
+    password = data.get('password')
+    confirm = data.get('confirm')
     if password != confirm:
-        err_msg = 'Mật khẩu KHÔNG khớp'
+        err_msg = 'Mật khẩu không khớp!'
         return render_template('register.html', err_msg=err_msg)
 
-    avatar = request.files.get('avatar')
     try:
-        dao.add_user(avatar=avatar,
-                    name=request.form.get('name'),
-                    username=request.form.get('username'),
-                    password=request.form.get('password'))
+        add_user(name=data.get('name'), username=data.get('username'), password=password, avatar=request.files.get('avatar'))
+        return redirect('/login')
     except Exception as ex:
-        return render_template('register.html', err_msg="Hệ thống đang có lỗi!")
+        return render_template('register.html', err_msg=str(ex))
 
+
+
+@app.route('/logout')
+def logout_process():
+    logout_user()
     return redirect('/login')
 
 
@@ -49,54 +54,44 @@ def login_process():
     username = request.form.get('username')
     password = request.form.get('password')
 
-    u = dao.auth_user(username=username, password=password)
-    if u:
-        login_user(user=u)
+    user = dao.auth_user(username=username, password=password)
+    if user:
+        login_user(user=user)
 
     next = request.args.get('next')
     return redirect(next if next else '/')
 
 
-@app.route('/logout')
-def logout_process():
-    logout_user()
-    return redirect('/login')
-
-@app.route('/api/carts/<int:id>', methods=['put'])
-def update_to_cart(id):
-    cart = session.get('cart')
-
-    if cart and id in cart:
-        quantity = int(request.json['quantity'])
-        cart[id]['quantity'] = quantity
-
-    session['cart'] = cart
-    return jsonify(utils.count_carts(cart))
-
-
-@app.route('/api/carts/<int:id>', methods=['delete'])
-def delete_cart(id):
-    cart = session.get('cart')
-
-    if cart and id in cart:
-        del cart['id']
-
-    session['cart'] = cart
-    return jsonify(utils.count_carts(cart))
-
 @app.route('/api/carts', methods=['post'])
 def add_to_cart():
-    data = request.json
+    '''
+        {
+            "1", {
+                "id": "1",
+                "name": "aaaa",
+                "price": 123,
+                "quantity": 2
+            }, "2", {
+                "id": "2",
+                "name": "aaaa",
+                "price": 123,
+                "quantity": 1
+            }
+        }
 
+    '''
+    # print(request.json)
     cart = session.get('cart')
     if not cart:
         cart = {}
 
-    id, name, price = str(data.get('id')), data.get('name'), data.get('price')
+    id = str(request.json.get('id'))
 
     if id in cart:
         cart[id]["quantity"] += 1
     else:
+        name = request.json.get('name')
+        price = request.json.get('price')
         cart[id] = {
             "id": id,
             "name": name,
@@ -106,38 +101,47 @@ def add_to_cart():
 
     session['cart'] = cart
 
-    """
-        {
-            "1": {
-                "id": 1,
-                "name": "...",
-                "price": 99,
-                "quantity": 2
-            }, "2": {
-                "id": 2,
-                "name": "...",
-                "price": 99,
-                "quantity":5
-            }
-        }
-    """
-    return jsonify(utils.count_carts(cart))
+    return jsonify(utils.stats_cart(cart))
+
+@app.route('/api/carts/<id>', methods=['put'])
+def update_to_cart(id):
+    cart = session.get('cart')
+
+    if cart and id in cart:
+        cart[id]["quantity"] = int(request.json.get("quantity"))
+
+    session['cart'] = cart
+
+    return jsonify(utils.stats_cart(cart))
+
+
+@app.route('/api/carts/<id>', methods=['delete'])
+def delete_to_cart(id):
+    cart = session.get('cart')
+
+    if cart and id in cart:
+        del cart[id]
+
+    session['cart'] = cart
+
+    return jsonify(utils.stats_cart(cart))
+
 
 @app.route('/cart')
 def cart_view():
     return render_template('cart.html')
 
-@login.user_loader
-def load_user(pk):
-    return dao.get_user_by_id(pk)
-
 
 @app.context_processor
 def common_responses():
     return {
-        'categories': dao.get_categories(),
-        'cart_stats': utils.count_carts(session.get('cart'))
+        'categories': dao.load_categories(),
+        'cart_stats': utils.stats_cart(session.get('cart'))
     }
+
+@login.user_loader
+def load_user(id):
+    return dao.get_user_by_id(id)
 
 
 if __name__ == '__main__':

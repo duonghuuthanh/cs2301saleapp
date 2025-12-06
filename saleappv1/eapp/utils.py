@@ -1,4 +1,4 @@
-def count_carts(cart):
+def stats_cart(cart):
     total_quantity, total_amount = 0, 0
 
     if cart:
@@ -7,6 +7,6 @@ def count_carts(cart):
             total_amount += c['quantity'] * c['price']
 
     return {
-        "total_quantity": total_quantity,
-        "total_amount": total_amount
+        'total_quantity': total_quantity,
+        'total_amount': total_amount
     }
